@@ -1,0 +1,199 @@
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Bell, Send, Plus, Flag } from 'lucide-react';
+
+const AnonymousGroupChat = () => {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [groupCode, setGroupCode] = useState('');
+  const [joined, setJoined] = useState(false);
+  const [username, setUsername] = useState('');
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+
+  useEffect(() => {
+    // Simular carga de grupos desde un backend
+    setGroups([
+      { id: 1, name: 'General', code: 'GEN001' },
+      { id: 2, name: 'Tecnología', code: 'TEC002' },
+      { id: 3, name: 'Deportes', code: 'DEP003' },
+    ]);
+  }, []);
+
+  const handleJoinGroup = () => {
+    const group = groups.find(g => g.code === groupCode);
+    if (group && username.trim() !== '') {
+      setSelectedGroup(group);
+      setJoined(true);
+      setNotification(`Te has unido al grupo ${group.name}`);
+    } else {
+      setNotification('Código de grupo inválido o nombre de usuario vacío');
+    }
+  };
+
+  const handleCreateGroup = () => {
+    if (newGroupName.trim() !== '') {
+      const newGroupCode = `GRP${groups.length + 1}`;
+      const newGroup = { 
+        id: groups.length + 1, 
+        name: newGroupName, 
+        code: newGroupCode 
+      };
+      setGroups([...groups, newGroup]);
+      setSelectedGroup(newGroup);
+      setJoined(true);
+      setNotification(`Nuevo grupo "${newGroupName}" creado con código ${newGroupCode}`);
+      setShowCreateGroup(false);
+      setNewGroupName('');
+    } else {
+      setNotification('Por favor, ingresa un nombre para el grupo');
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (newMessage.trim() !== '') {
+      const newMsg = { 
+        id: Date.now(), 
+        text: newMessage, 
+        author: username, 
+        timestamp: new Date().toLocaleTimeString(),
+        replies: [],
+        flagged: false
+      };
+      setMessages([...messages, newMsg]);
+      setNewMessage('');
+      setNotification('Mensaje enviado');
+    }
+  };
+
+  const handleReply = (msgId, replyText) => {
+    setMessages(messages.map(msg => 
+      msg.id === msgId 
+        ? { ...msg, replies: [...msg.replies, { id: Date.now(), text: replyText, author: username }] }
+        : msg
+    ));
+    setNotification('Respuesta enviada');
+  };
+
+  const handleFlag = (msgId) => {
+    setMessages(messages.map(msg => 
+      msg.id === msgId ? { ...msg, flagged: true } : msg
+    ));
+    setNotification('Mensaje reportado');
+  };
+
+  if (!joined) {
+    return (
+      <Card className="w-full max-w-md mx-auto mt-10">
+        <CardHeader>
+          <h2 className="text-2xl font-bold">Unirse o Crear Grupo</h2>
+        </CardHeader>
+        <CardContent>
+          {notification && (
+            <Alert className="mb-4">
+              <Bell className="h-4 w-4" />
+              <AlertDescription>{notification}</AlertDescription>
+            </Alert>
+          )}
+          <Input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Tu nombre de usuario"
+            className="mb-4"
+          />
+          {!showCreateGroup ? (
+            <>
+              <Input
+                type="text"
+                value={groupCode}
+                onChange={(e) => setGroupCode(e.target.value)}
+                placeholder="Código del grupo"
+                className="mb-4"
+              />
+              <div className="flex justify-between">
+                <Button onClick={handleJoinGroup}>Unirse</Button>
+                <Button onClick={() => setShowCreateGroup(true)}><Plus className="mr-2" /> Crear Grupo</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Nombre del nuevo grupo"
+                className="mb-4"
+              />
+              <div className="flex justify-between">
+                <Button onClick={handleCreateGroup}>Crear Grupo</Button>
+                <Button onClick={() => setShowCreateGroup(false)}>Cancelar</Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto mt-10">
+      <CardHeader>
+        <h2 className="text-2xl font-bold">Chat Anónimo: {selectedGroup.name}</h2>
+        <p className="text-sm text-gray-500">Código del grupo: {selectedGroup.code}</p>
+      </CardHeader>
+      <CardContent>
+        {notification && (
+          <Alert className="mb-4">
+            <Bell className="h-4 w-4" />
+            <AlertDescription>{notification}</AlertDescription>
+          </Alert>
+        )}
+        <div className="mb-4 h-80 overflow-y-auto border rounded p-2">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`mb-2 p-2 rounded ${msg.flagged ? 'bg-red-100' : 'bg-gray-100'}`}>
+              <p>{msg.text}</p>
+              <small>{msg.timestamp} - Anónimo</small>
+              <Button variant="ghost" size="sm" onClick={() => handleFlag(msg.id)}><Flag className="h-4 w-4" /></Button>
+              {msg.replies.map(reply => (
+                <div key={reply.id} className="ml-4 mt-2 p-1 bg-white rounded">
+                  <p>{reply.text}</p>
+                  <small>{reply.author}</small>
+                </div>
+              ))}
+              <Input
+                type="text"
+                placeholder="Responder..."
+                className="mt-2"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleReply(msg.id, e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex">
+          <Input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Escribe tu pregunta anónima..."
+            className="flex-grow mr-2"
+          />
+          <Button onClick={handleSendMessage}><Send className="mr-2" /> Enviar</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default AnonymousGroupChat;
